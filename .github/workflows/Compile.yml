@@ -1,0 +1,37 @@
+name: STM32WL Makefile Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Install the ARM GNU Toolchain
+      - name: Install Arm GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: 'latest' # Or specify a version like '12.2.Rel1'
+
+      # 3. Run your Makefile
+      - name: Build Firmware
+        run: make
+
+      # 4. Upload the compiled binary as a GitHub artifact
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32wl-firmware
+          # Update this path to match your Makefile's output directory
+          path: |
+            build/*.bin
+            build/*.elf
+            build/*.hex
