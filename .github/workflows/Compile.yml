@@ -16,27 +16,31 @@ jobs:
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
 
-      # Correction ici : On définit DEVICE et TARGETS pour libopencm3
+      # 1. Compilation de libopencm3 pour l'architecture WL
       - name: Build libopencm3
         run: |
           make -C libopencm3 TARGETS='stm32/wl'
 
+      # 2. Compilation de whad-lib avec définition explicite de l'architecture
       - name: Build whad-lib
         run: |
           cd whad-lib
-          # Nettoyage des erreurs de syntaxe potentielles
+          # Correction de la syntaxe du Makefile
           sed -i 's/^[[:space:]]\+//' Makefile
-          # On passe les flags nécessaires si le Makefile les attend
-          make
+          # On définit ARCH pour éviter "Architecture not supported"
+          make ARCH=stm32wl
           cd ..
 
+      # 3. Préparation du dossier lib
       - name: Prepare Lib Folder
         run: |
           mkdir -p lib
-          cp whad-lib/libwhad.a lib/ 2>/dev/null || echo "Lib already exists"
+          cp whad-lib/libwhad.a lib/
 
+      # 4. Compilation finale avec le DEVICE correct
       - name: Build Main Firmware
-        run: make
+        run: |
+          make DEVICE=stm32wl55cc
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
