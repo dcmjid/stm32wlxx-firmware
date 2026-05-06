@@ -1,47 +1,58 @@
 name: Build WHAD STM32WL
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Récupération du code et des submodules (libopencm3 et whad-lib)
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
+      # 2. Installation de la toolchain ARM
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: 'latest'
 
-      # 1. Compilation de libopencm3 pour l'architecture WL
+      # 3. Compilation de libopencm3 (indispensable pour les scripts de lien)
       - name: Build libopencm3
         run: |
           make -C libopencm3 TARGETS='stm32/wl'
 
-      # 2. Compilation de whad-lib avec définition explicite de l'architecture
+      # 4. Compilation de whad-lib (Correction de l'erreur Architecture)
+      # On force ARCH=stm32 pour valider le test de la ligne 7 du Makefile
       - name: Build whad-lib
         run: |
           cd whad-lib
-          # Correction de la syntaxe du Makefile
+          # Supprime les espaces accidentels en début de ligne
           sed -i 's/^[[:space:]]\+//' Makefile
-          # On définit ARCH pour éviter "Architecture not supported"
-          make ARCH=stm32wl
+          # Compile avec l'architecture reconnue par votre fork
+          make ARCH=stm32
           cd ..
 
-      # 3. Préparation du dossier lib
+      # 5. Préparation du dossier lib pour le firmware principal
       - name: Prepare Lib Folder
         run: |
           mkdir -p lib
           cp whad-lib/libwhad.a lib/
 
-      # 4. Compilation finale avec le DEVICE correct
+      # 6. Compilation finale du firmware
+      # On définit DEVICE pour libopencm3
       - name: Build Main Firmware
         run: |
           make DEVICE=stm32wl55cc
 
+      # 7. Sauvegarde des fichiers compilés
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
