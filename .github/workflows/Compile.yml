@@ -20,32 +20,23 @@ jobs:
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
 
-      # 1. Compilation de libopencm3
       - name: Build libopencm3
-        run: |
-          make -C libopencm3 TARGETS='stm32/wl'
+        run: make -C libopencm3 TARGETS='stm32/wl'
 
-      # 2. Compilation de whad-lib (La correction est ici)
       - name: Build whad-lib
         run: |
           cd whad-lib
-          # On nettoie le Makefile pour éviter l'erreur de "recipe commences"
-          sed -i 's/^[[:space:]]\+//' Makefile
-          # On force ARCH=stm32 et on définit les flags pour le processeur M4
-          make ARCH=stm32 CROSS_COMPILE=arm-none-eabi- CFLAGS="-mcpu=cortex-m4 -mthumb"
+          # On définit ARCH_ARM pour entrer dans la première condition du Makefile
+          make ARCH_ARM=1
           cd ..
 
-      # 3. Préparation du dossier lib
       - name: Prepare Lib Folder
         run: |
           mkdir -p lib
-          cp whad-lib/libwhad.a lib/ 2>/dev/null || cp whad-lib/*.a lib/ || echo "Warning: .a file not found"
+          cp whad-lib/libwhad.a lib/
 
-      # 4. Compilation du Firmware Principal
       - name: Build Main Firmware
-        run: |
-          # On passe DEVICE à la racine pour le linker script de libopencm3
-          make DEVICE=stm32wl55cc
+        run: make DEVICE=stm32wl55cc
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -54,3 +45,4 @@ jobs:
           path: |
             *.bin
             *.elf
+            *.hex
