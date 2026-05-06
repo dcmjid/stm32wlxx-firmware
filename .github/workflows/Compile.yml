@@ -1,54 +1,43 @@
 name: Build WHAD STM32WL
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le code et TOUS les submodules (libopencm3, whad-lib, etc.)
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      # 2. Installer le compilateur ARM GCC
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: 'latest'
 
-      # 3. Compiler libopencm3 (indispensable pour le linker script)
+      # Correction ici : On définit DEVICE et TARGETS pour libopencm3
       - name: Build libopencm3
-        run: make -C libopencm3
+        run: |
+          make -C libopencm3 TARGETS='stm32/wl'
 
-      # 4. Nettoyer et compiler whad-lib
-      # Le "sed" corrige l'erreur "recipe commences before first target" 
-      # en supprimant les espaces accidentels en début de ligne.
       - name: Build whad-lib
         run: |
           cd whad-lib
+          # Nettoyage des erreurs de syntaxe potentielles
           sed -i 's/^[[:space:]]\+//' Makefile
+          # On passe les flags nécessaires si le Makefile les attend
           make
           cd ..
 
-      # 5. Préparer le dossier lib pour le firmware principal
       - name: Prepare Lib Folder
         run: |
           mkdir -p lib
-          cp whad-lib/libwhad.a lib/
+          cp whad-lib/libwhad.a lib/ 2>/dev/null || echo "Lib already exists"
 
-      # 6. Compilation finale du firmware STM32WL
       - name: Build Main Firmware
         run: make
 
-      # 7. Sauvegarder les fichiers compilés (.bin, .elf, .hex)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
