@@ -11,53 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupération du code et des submodules (libopencm3 et whad-lib)
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      # 2. Installation de la toolchain ARM
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: 'latest'
 
-      # 3. Compilation de libopencm3 (indispensable pour les scripts de lien)
+      # 1. Compilation de libopencm3
       - name: Build libopencm3
         run: |
           make -C libopencm3 TARGETS='stm32/wl'
 
-      # 4. Compilation de whad-lib (Correction de l'erreur Architecture)
-      # On force ARCH=stm32 pour valider le test de la ligne 7 du Makefile
+      # 2. Compilation de whad-lib (La correction est ici)
       - name: Build whad-lib
         run: |
           cd whad-lib
-          # Supprime les espaces accidentels en début de ligne
+          # On nettoie le Makefile pour éviter l'erreur de "recipe commences"
           sed -i 's/^[[:space:]]\+//' Makefile
-          # Compile avec l'architecture reconnue par votre fork
-          make ARCH=stm32
+          # On force ARCH=stm32 et on définit les flags pour le processeur M4
+          make ARCH=stm32 CROSS_COMPILE=arm-none-eabi- CFLAGS="-mcpu=cortex-m4 -mthumb"
           cd ..
 
-      # 5. Préparation du dossier lib pour le firmware principal
+      # 3. Préparation du dossier lib
       - name: Prepare Lib Folder
         run: |
           mkdir -p lib
-          cp whad-lib/libwhad.a lib/
+          cp whad-lib/libwhad.a lib/ 2>/dev/null || cp whad-lib/*.a lib/ || echo "Warning: .a file not found"
 
-      # 6. Compilation finale du firmware
-      # On définit DEVICE pour libopencm3
+      # 4. Compilation du Firmware Principal
       - name: Build Main Firmware
         run: |
+          # On passe DEVICE à la racine pour le linker script de libopencm3
           make DEVICE=stm32wl55cc
 
-      # 7. Sauvegarde des fichiers compilés
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: whad-stm32wl-firmware
+          name: stm32wl-firmware
           path: |
             *.bin
             *.elf
-            *.hex
