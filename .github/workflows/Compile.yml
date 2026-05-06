@@ -13,11 +13,19 @@ jobs:
 
       - name: Install Arm GNU Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: 'latest'
 
-      - name: Build Firmware
+      # Étape cruciale : s'assurer que le dossier lib existe et compiler la lib séparément si besoin
+      - name: Prepare and Build Dependencies
+        run: |
+          mkdir -p lib
+          # Force la compilation de la bibliothèque whad-lib d'abord
+          make -C whad-lib
+          # Copie manuelle si le Makefile principal ne le fait pas correctement
+          cp whad-lib/libwhad.a lib/ 2>/dev/null || echo "Lib already in place"
+
+      - name: Build Main Firmware
         run: make
+
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
