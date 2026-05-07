@@ -2,9 +2,6 @@ name: STM32 Build
 
 on:
   push:
-    branches:
-      - main
-      - master
   pull_request:
   workflow_dispatch:
 
@@ -13,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install ARM GCC Toolchain
+      - name: Install ARM Toolchain
         run: |
           sudo apt update
           sudo apt install -y \
@@ -27,18 +24,20 @@ jobs:
             make \
             cmake
 
-      - name: Show toolchain version
-        run: arm-none-eabi-gcc --version
+      - name: Create required directories
+        run: |
+          mkdir -p lib
 
-      - name: Build firmware
+      - name: Build
         run: |
           make -j$(nproc)
 
-      - name: Upload binaries
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-build
+          name: firmware
           path: |
-            **/*.elf
             **/*.bin
             **/*.hex
+            **/*.elf
+            **/*.a
