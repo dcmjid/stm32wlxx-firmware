@@ -1,53 +1,44 @@
-name: Build WHAD STM32WL
+name: STM32 Build
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0
 
-      - name: Install Arm GNU Toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
-
-      # 1. Préparer TOUTE la structure de dossiers pour éviter les erreurs de "No such file"
-      - name: Prepare directories
-        run: mkdir -p lib
-
-      # 2. Compiler libopencm3
-      - name: Build libopencm3
-        run: make -C libopencm3 TARGETS='stm32/wl'
-
-      # 3. Compiler whad-lib avec la variable ARCH_ARM identifiée
-      - name: Build whad-lib
+      - name: Install ARM GCC Toolchain
         run: |
-          cd whad-lib
-          make ARCH_ARM=1
-          cd ..
+          sudo apt update
+          sudo apt install -y \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi \
+            make \
+            cmake
 
-      # 4. Copier manuellement la lib là où le Makefile racine l'attend
-      - name: Copy libwhad
-        run: cp whad-lib/libwhad.a lib/
+      - name: Show toolchain version
+        run: arm-none-eabi-gcc --version
 
-      # 5. Build final
-      - name: Build Main Firmware
-        run: make DEVICE=stm32wl55cc
+      - name: Build firmware
+        run: |
+          make -j$(nproc)
 
-      - name: Upload Artifacts
+      - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: stm32wl-firmware
+          name: firmware-build
           path: |
-            *.bin
-            *.elf
-            *.hex
+            **/*.elf
+            **/*.bin
+            **/*.hex
