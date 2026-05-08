@@ -1,11 +1,6 @@
-name: STM32WLXX Firmware Build
+name: STM32WLXX Official-Like Build
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -13,75 +8,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Clone repository + submodules
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # Install ARM GCC toolchain
-      - name: Install ARM GCC
+      - name: Install ARM GCC 10.3
         uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
-          release: '13.2.Rel1'
+          release: '10.3-2021.10'
 
-      # Debug repository structure
-      - name: Debug repository tree
-        run: |
-          echo "===== ROOT ====="
-          pwd
-          ls -la
-
-          echo "===== WHAD-LIB ====="
-          ls -la whad-lib || true
-
-          echo "===== LIBOPENCM3 ====="
-          ls -la libopencm3 || true
-
-      # Create missing directories required by Makefiles
-      - name: Create required directories
+      - name: Prepare directories
         run: |
           mkdir -p whad-lib/lib
           mkdir -p lora
 
-      # Verify toolchain
-      - name: Show compiler version
-        run: |
-          arm-none-eabi-gcc --version
-          arm-none-eabi-ar --version
+      - name: Show GCC version
+        run: arm-none-eabi-gcc --version
 
-      # Build libopencm3 + whad-lib
       - name: Build libraries
         run: |
           make lib
 
-      # Build NUCLEO_WL55 firmware
       - name: Build NUCLEO_WL55
         run: |
-          make nucleo_wl55 -j$(nproc)
+          make OPT_LEVEL=-O2 nucleo_wl55 -j$(nproc)
 
-      # Build LORA_E5_MINI firmware
       - name: Build LORA_E5_MINI
         run: |
-          make lora_e5_mini -j$(nproc)
+          make OPT_LEVEL=-O2 lora_e5_mini -j$(nproc)
 
-      # Show generated files
-      - name: List generated artifacts
+      - name: Firmware sizes
         run: |
-          find . -type f \( \
-            -name "*.elf" -o \
-            -name "*.bin" -o \
-            -name "*.hex" -o \
-            -name "*.a" \
-          \)
+          arm-none-eabi-size nucleo_wl55.elf
+          arm-none-eabi-size lora_e5_mini.elf
 
-      # Upload firmware artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: stm32wlxx-firmware
+          name: official-like-build
           path: |
-            **/*.elf
-            **/*.bin
-            **/*.hex
-            **/*.a
+            *.elf
+            *.hex
+            *.bin
