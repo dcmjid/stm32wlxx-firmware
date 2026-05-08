@@ -1,4 +1,4 @@
-name: STM32WLXX Firmware Official-Like Build
+name: STM32WLXX Official-Like Build
 
 on:
   workflow_dispatch:
@@ -13,7 +13,6 @@ jobs:
         with:
           submodules: recursive
 
-      # GCC plus ancien proche des releases historiques STM32
       - name: Install ARM GCC 10.3
         uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
@@ -24,49 +23,30 @@ jobs:
           mkdir -p whad-lib/lib
           mkdir -p lora
 
-      # Affichage version exacte
-      - name: Toolchain info
-        run: |
-          arm-none-eabi-gcc --version
+      - name: Show GCC version
+        run: arm-none-eabi-gcc --version
 
-      # Compilation avec flags plus proches builds STM32 classiques
       - name: Build libraries
         run: |
-          make \
-            C_FLAGS="-O2 -mthumb -mcpu=cortex-m4 -Wall" \
-            lib
+          make lib
 
       - name: Build NUCLEO_WL55
         run: |
-          make \
-            C_FLAGS="-O2 -mthumb -mcpu=cortex-m4 -Wall" \
-            nucleo_wl55 -j$(nproc)
+          make OPT_LEVEL=-O2 nucleo_wl55 -j$(nproc)
 
       - name: Build LORA_E5_MINI
         run: |
-          make \
-            C_FLAGS="-O2 -mthumb -mcpu=cortex-m4 -Wall" \
-            lora_e5_mini -j$(nproc)
+          make OPT_LEVEL=-O2 lora_e5_mini -j$(nproc)
 
-      # Taille réelle firmware
-      - name: Show firmware sizes
+      - name: Firmware sizes
         run: |
           arm-none-eabi-size nucleo_wl55.elf
           arm-none-eabi-size lora_e5_mini.elf
 
-      # Conversion BIN supplémentaire
-      - name: Generate BIN files
-        run: |
-          arm-none-eabi-objcopy -I ihex -O binary \
-            lora_e5_mini.hex lora_e5_mini.bin
-
-          arm-none-eabi-objcopy -I ihex -O binary \
-            nucleo_wl55.hex nucleo_wl55.bin
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: stm32wlxx-official-like-build
+          name: official-like-build
           path: |
             *.elf
             *.hex
