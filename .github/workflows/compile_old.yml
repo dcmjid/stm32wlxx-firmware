@@ -1,53 +1,95 @@
-name: STM32WLXX Official-Like Build
+name: STM32WLXX GCC11 Build
 
 on:
   workflow_dispatch:
+  push:
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # Clone repo + submodules
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install ARM GCC 10.3
+      # GCC 11 (bon compromis compatibilité / modernité)
+      - name: Install ARM GCC 11.3
         uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
-          release: '10.3-2021.10'
+          release: '11.3.Rel1'
 
+      # Préparation dossiers requis
       - name: Prepare directories
         run: |
           mkdir -p whad-lib/lib
           mkdir -p lora
 
-      - name: Show GCC version
-        run: arm-none-eabi-gcc --version
+      # Vérification toolchain
+      - name: Show toolchain version
+        run: |
+          arm-none-eabi-gcc --version
+          arm-none-eabi-ar --version
 
+      # Debug variables Makefile
+      - name: Debug makefile variables
+        run: |
+          make makefiledebug
+
+      # Build bibliothèques
       - name: Build libraries
         run: |
           make lib
 
+      # Build NUCLEO_WL55
       - name: Build NUCLEO_WL55
         run: |
-          make OPT_LEVEL=-O2 nucleo_wl55 -j$(nproc)
+          make nucleo_wl55 -j$(nproc)
 
+      # Build LORA_E5_MINI
       - name: Build LORA_E5_MINI
         run: |
-          make OPT_LEVEL=-O2 lora_e5_mini -j$(nproc)
+          make lora_e5_mini -j$(nproc)
 
-      - name: Firmware sizes
+      # Affichage tailles firmware
+      - name: Show firmware sizes
         run: |
+          echo "===== NUCLEO_WL55 ====="
           arm-none-eabi-size nucleo_wl55.elf
+
+          echo "===== LORA_E5_MINI ====="
           arm-none-eabi-size lora_e5_mini.elf
 
+      # Conversion HEX -> BIN
+      - name: Generate BIN files
+        run: |
+          arm-none-eabi-objcopy -I ihex -O binary \
+            nucleo_wl55.hex nucleo_wl55.bin
+
+          arm-none-eabi-objcopy -I ihex -O binary \
+            lora_e5_mini.hex lora_e5_mini.bin
+
+      # Liste fichiers générés
+      - name: List artifacts
+        run: |
+          ls -lah
+          find . -type f \( \
+            -name "*.elf" -o \
+            -name "*.hex" -o \
+            -name "*.bin" -o \
+            -name "*.a" \
+          \)
+
+      # Upload résultats
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: official-like-build
+          name: stm32wlxx-gcc11-build
           path: |
             *.elf
             *.hex
             *.bin
+            whad-lib/lib/*.a
